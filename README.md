@@ -1,69 +1,122 @@
-# EyeTrack-Auto
+# Eyetrack-bot
 
-EyeTrack-Auto is a project designed to automate gameplay in sniper minigames using eye tracking technology. The application utilizes OpenCV and MediaPipe for eye detection and tracking, allowing users to control game actions through their gaze.
+Eyetrack bot is an advanced eye tracking system that uses real time computer vision to control mouse movement through gaze detection. Built with MediaPipe and OpenCV, it provides precise cursor control for accessibility and productivity applications.
 
-## Project Structure
+## Features
 
-```
-EyeTrack-Auto
-├── src
-│   ├── main.py                # Entry point of the application
-│   ├── eye_tracker.py         # Eye tracking functionality
-│   ├── game_controller.py     # Game interaction management
-│   ├── calibration.py          # Calibration of eye tracking system
-│   └── utils
-│       ├── __init__.py        # Initializes the utils module
-│       ├── image_processing.py # Image processing utilities
-│       └── coordinates.py      # Coordinate conversion functions
-├── models
-│   └── eye_tracking_model.py   # Eye tracking model definitions
-├── config
-│   ├── settings.py            # Configuration settings
-│   └── game_configs.json      # Game-specific settings
-├── tests
-│   ├── __init__.py            # Initializes the tests module
-│   ├── test_eye_tracker.py     # Unit tests for EyeTracker
-│   └── test_game_controller.py # Unit tests for GameController
-├── requirements.txt            # Project dependencies
-├── setup.py                    # Project packaging
-├── .gitignore                  # Files to ignore in version control
-└── README.md                   # Project documentation
-```
+- **Real-time Eye Tracking**: Uses MediaPipe face mesh for accurate iris detection
+- **Precision Mode**: High-accuracy targeting mode for detailed work
+- **Face Landmark Visualization**: Complete face tracking with numbered reference points
+- **Stability Control**: Filters micro-movements for smooth cursor control
+- **Calibration System**: Easy setup with visual feedback
+- **Cross-platform**: Works on macOS, Windows, and Linux
+
 
 ## Installation
 
-1. Clone the repository:
-   ```
-   git clone https://github.com/yourusername/EyeTrack-Auto.git
-   cd EyeTrack-Auto
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/LEXES7/Eyetrack-bot.git
+   cd Eyetrack-bot
    ```
 
-2. Create a virtual environment:
-   ```
+2. **Create and activate virtual environment:**
+   ```bash
    python -m venv venv
-   source venv/bin/activate  # On Windows use `venv\Scripts\activate`
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
    ```
 
-3. Install the required dependencies:
-   ```
-   pip install -r requirements.txt
+3. **Install dependencies:**
+   ```bash
+   pip install opencv-python mediapipe pyautogui numpy
    ```
 
 ## Usage
 
-1. Run the application:
-   ```
-   python src/main.py
+1. **Run the application:**
+   ```bash
+   cd src
+   python main.py
    ```
 
-2. Follow the on-screen instructions to calibrate the eye tracking system.
+2. **Calibration:**
+   - Look at the green center circle
+   - Press **SPACE** 5 times while looking at center
+   - Wait for "Calibrated" message
 
-3. Enjoy automated gameplay in sniper minigames!
+3. **Controls:**
+   - **SPACE**: Calibrate (during setup)
+   - **A**: Toggle Precision/Normal mode
+   - **L**: Toggle face landmarks display
+   - **Q**: Quit application
+
+## Modes
+
+### Normal Mode
+- Standard sensitivity for general use
+- Smooth cursor movement
+- Good for browsing and regular tasks
+
+### Precision Mode
+- Higher sensitivity and accuracy
+- Reduced smoothing for faster response
+- Enhanced targeting display
+- Optimized for detailed work
+
+## Technical Details
+
+- **Face Detection**: MediaPipe Face Mesh (468 landmarks)
+- **Iris Tracking**: 4-point iris detection per eye
+- **Stability**: 3-frame consistency requirement
+- **Smoothing**: Weighted average with velocity compensation
+- **Performance**: ~17-25 FPS depending on hardware
+
+## System Requirements
+
+- **Camera**: Any USB webcam or built-in camera
+- **Python**: 3.8 or higher
+- **RAM**: 4GB minimum, 8GB recommended
+- **CPU**: Modern multi-core processor recommended
+
+## Troubleshooting
+
+**Low FPS:**
+- Close other camera applications
+- Reduce video resolution in code
+- Disable face landmarks (press L)
+
+**Cursor not moving:**
+- Complete calibration process
+- Check camera permissions
+- Ensure good lighting conditions
+
+**Inaccurate tracking:**
+- Recalibrate the system
+- Improve lighting setup
+- Sit closer to camera
+
+## Use Cases
+
+- **Accessibility**: Hands-free computer control for users with mobility limitations
+- **Productivity**: Quick navigation and cursor positioning
+- **Research**: Eye tracking studies and human-computer interaction
+- **Education**: Learning computer vision and eye tracking technologies
+
+## Disclaimer
+
+This software is intended for educational, research, and accessibility purposes. Users are responsible for complying with applicable laws and terms of service when using this software.
 
 ## Contributing
 
-Contributions are welcome! Please open an issue or submit a pull request for any improvements or bug fixes.
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Submit a pull request
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.# Eyetrack-bot
+This project is open source and available under the [MIT License](LICENSE).
+
+## Author
+
+Created by Sachintha
