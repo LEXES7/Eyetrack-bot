@@ -127,6 +127,7 @@ class EyeTrackerLite:
             right_ear = pose_landmarks.landmark[self.mp_pose.PoseLandmark.RIGHT_EAR]
             
             shoulder_center_x = (left_shoulder.x + right_shoulder.x) / 2
+            shoulder_center_y = (left_shoulder.y + right_shoulder.y) / 2
             shoulder_width = abs(right_shoulder.x - left_shoulder.x)
             
             ear_center_x = (left_ear.x + right_ear.x) / 2
@@ -135,7 +136,13 @@ class EyeTrackerLite:
             if shoulder_width > 0:
                 body_offset_x = (nose.x - shoulder_center_x) / shoulder_width * 1.5
                 head_offset_x = (nose.x - ear_center_x) / shoulder_width * 2.0
-                head_offset_y = (nose.y - ear_center_y) * 3.0
+                
+                # Fixed vertical calculation - use shoulder reference for better range
+                head_to_shoulder_distance = abs(ear_center_y - shoulder_center_y)
+                if head_to_shoulder_distance > 0:
+                    head_offset_y = (nose.y - ear_center_y) / head_to_shoulder_distance * 4.0
+                else:
+                    head_offset_y = (nose.y - ear_center_y) * 3.0
                 
                 return head_offset_x + body_offset_x, head_offset_y
         except:
@@ -164,13 +171,16 @@ class EyeTrackerLite:
         
         horizontal_offset = (nose_tip.x - face_center_x) / face_width * 4
         
-        vertical_nose_offset = (nose_tip.y - nose_bridge.y) / face_height * 6
-        vertical_face_offset = (nose_tip.y - face_center_y) / face_height * 3
-        vertical_offset = vertical_nose_offset + vertical_face_offset
+        # Fixed vertical calculation for better bottom range
+        vertical_nose_offset = (nose_tip.y - nose_bridge.y) / face_height * 8
+        vertical_face_offset = (nose_tip.y - face_center_y) / face_height * 4
         
+        # Eye position relative to face center
         eye_center_y = (left_eye_corner.y + right_eye_corner.y) / 2
-        eye_vertical_offset = (eye_center_y - face_center_y) / face_height * 2
-        vertical_offset += eye_vertical_offset
+        eye_vertical_offset = (eye_center_y - face_center_y) / face_height * 3
+        
+        # Combine all vertical components
+        vertical_offset = vertical_nose_offset + vertical_face_offset + eye_vertical_offset
         
         return horizontal_offset, vertical_offset
 
@@ -308,11 +318,11 @@ class EyeTrackerLite:
         eye_gaze_y = (left_iris[1] + right_iris[1]) / 2
         
         if self.aimbot_mode:
-            combined_x = eye_gaze_x + (combined_h_offset * 0.35)
-            combined_y = eye_gaze_y + (combined_v_offset * 0.45)
+            combined_x = eye_gaze_x + (combined_h_offset * 0.3)
+            combined_y = eye_gaze_y + (combined_v_offset * 0.35)
         else:
             combined_x = eye_gaze_x + (combined_h_offset * 0.2)
-            combined_y = eye_gaze_y + (combined_v_offset * 0.3)
+            combined_y = eye_gaze_y + (combined_v_offset * 0.25)
         
         combined_x = max(0, min(1, combined_x))
         combined_y = max(0, min(1, combined_y))
@@ -322,11 +332,11 @@ class EyeTrackerLite:
         
         if self.center_point:
             if self.aimbot_mode:
-                sensitivity_x = 2.3
-                sensitivity_y = 2.1
+                sensitivity_x = 2.0
+                sensitivity_y = 2.2
             else:
-                sensitivity_x = 1.8
-                sensitivity_y = 1.5
+                sensitivity_x = 1.6
+                sensitivity_y = 1.8
                 
             adjusted_x = 0.5 + (combined_x - self.center_point[0]) * sensitivity_x
             adjusted_y = 0.5 + (combined_y - self.center_point[1]) * sensitivity_y
@@ -387,9 +397,9 @@ class EyeTrackerLite:
             return coords
         
         if self.aimbot_mode:
-            weights = [0.3, 0.7][:len(self.gaze_history)]
+            weights = [0.2, 0.8][:len(self.gaze_history)]  # More weight to latest
         else:
-            weights = [0.4, 0.6][:len(self.gaze_history)]
+            weights = [0.3, 0.7][:len(self.gaze_history)]  # More weight to latest
         
         total_weight = sum(weights)
         weights = [w/total_weight for w in weights]

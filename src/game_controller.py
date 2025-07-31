@@ -11,13 +11,13 @@ class GameController:
         
         self.last_x = self.screen_w // 2
         self.last_y = self.screen_h // 2
-        self.smoothing = 0.3
+        self.smoothing = 0.2  # Reduced from 0.3
         
         self.last_move_time = time.time()
         self.min_move_interval = 0.001
         
-        self.dead_zone_x = 0.008
-        self.dead_zone_y = 0.008
+        self.dead_zone_x = 0.004  # Reduced from 0.008
+        self.dead_zone_y = 0.004  # Reduced from 0.008
         
         self.velocity_x = 0
         self.velocity_y = 0
@@ -28,14 +28,14 @@ class GameController:
     def set_aimbot_mode(self, enabled):
         self.aimbot_mode = enabled
         if enabled:
-            self.smoothing = 0.4
-            self.dead_zone_x = 0.005
-            self.dead_zone_y = 0.005
+            self.smoothing = 0.25  # Reduced from 0.4
+            self.dead_zone_x = 0.002  # Reduced from 0.005
+            self.dead_zone_y = 0.002  # Reduced from 0.005
             self.min_move_interval = 0.001
         else:
-            self.smoothing = 0.3
-            self.dead_zone_x = 0.008
-            self.dead_zone_y = 0.008
+            self.smoothing = 0.2   # Reduced from 0.3
+            self.dead_zone_x = 0.004  # Reduced from 0.008
+            self.dead_zone_y = 0.004  # Reduced from 0.008
             self.min_move_interval = 0.001
 
     def move_mouse(self, gaze_coords):
@@ -63,15 +63,15 @@ class GameController:
         movement_speed = np.sqrt(diff_x**2 + diff_y**2)
         
         if self.aimbot_mode:
-            if movement_speed > 150:
-                smoothing_factor = 0.5
+            if movement_speed > 100:  # Reduced threshold
+                smoothing_factor = 0.35  # Reduced from 0.5
             else:
-                smoothing_factor = 0.4
+                smoothing_factor = 0.25  # Reduced from 0.4
         else:
-            if movement_speed > 200:
-                smoothing_factor = 0.4
+            if movement_speed > 150:  # Reduced threshold
+                smoothing_factor = 0.3   # Reduced from 0.4
             else:
-                smoothing_factor = 0.3
+                smoothing_factor = 0.2   # Reduced from 0.3
         
         smooth_x = self.last_x + (diff_x * smoothing_factor)
         smooth_y = self.last_y + (diff_y * smoothing_factor)
