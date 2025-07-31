@@ -6,12 +6,24 @@ import time
 class EyeTrackerLite:
     def __init__(self):
         self.mp_face_mesh = mp.solutions.face_mesh
+        self.mp_pose = mp.solutions.pose
         self.mp_drawing = mp.solutions.drawing_utils
+        
         self.face_mesh = self.mp_face_mesh.FaceMesh(
             max_num_faces=1,
             refine_landmarks=True,
             min_detection_confidence=0.7,
             min_tracking_confidence=0.7
+        )
+        
+        self.pose = self.mp_pose.Pose(
+            static_image_mode=False,
+            model_complexity=1,
+            smooth_landmarks=True,
+            enable_segmentation=False,
+            smooth_segmentation=False,
+            min_detection_confidence=0.5,
+            min_tracking_confidence=0.5
         )
         
         self.cap = cv2.VideoCapture(0)
@@ -47,6 +59,11 @@ class EyeTrackerLite:
         
         self.show_landmarks = True
         self.aimbot_mode = True
+        
+        # Pose integration settings
+        self.pose_weight = 0.25
+        self.pose_history = []
+        self.pose_history_size = 3
 
     def extract_eye_region(self, frame, landmarks, eye_indices):
         h, w = frame.shape[:2]
@@ -98,6 +115,34 @@ class EyeTrackerLite:
         
         return (relative_x, relative_y)
 
+    def get_pose_direction(self, pose_landmarks):
+        if not pose_landmarks:
+            return 0, 0
+        
+        try:
+            nose = pose_landmarks.landmark[self.mp_pose.PoseLandmark.NOSE]
+            left_shoulder = pose_landmarks.landmark[self.mp_pose.PoseLandmark.LEFT_SHOULDER]
+            right_shoulder = pose_landmarks.landmark[self.mp_pose.PoseLandmark.RIGHT_SHOULDER]
+            left_ear = pose_landmarks.landmark[self.mp_pose.PoseLandmark.LEFT_EAR]
+            right_ear = pose_landmarks.landmark[self.mp_pose.PoseLandmark.RIGHT_EAR]
+            
+            shoulder_center_x = (left_shoulder.x + right_shoulder.x) / 2
+            shoulder_width = abs(right_shoulder.x - left_shoulder.x)
+            
+            ear_center_x = (left_ear.x + right_ear.x) / 2
+            ear_center_y = (left_ear.y + right_ear.y) / 2
+            
+            if shoulder_width > 0:
+                body_offset_x = (nose.x - shoulder_center_x) / shoulder_width * 1.5
+                head_offset_x = (nose.x - ear_center_x) / shoulder_width * 2.0
+                head_offset_y = (nose.y - ear_center_y) * 3.0
+                
+                return head_offset_x + body_offset_x, head_offset_y
+        except:
+            pass
+        
+        return 0, 0
+
     def get_enhanced_face_direction(self, landmarks):
         nose_tip = landmarks.landmark[1]
         nose_bridge = landmarks.landmark[168]
@@ -129,7 +174,25 @@ class EyeTrackerLite:
         
         return horizontal_offset, vertical_offset
 
-    def draw_enhanced_landmarks(self, frame, landmarks):
+    def combine_face_and_pose(self, face_h, face_v, pose_h, pose_v):
+        # Smooth pose data
+        self.pose_history.append((pose_h, pose_v))
+        if len(self.pose_history) > self.pose_history_size:
+            self.pose_history.pop(0)
+        
+        if len(self.pose_history) >= 2:
+            smooth_pose_h = sum(p[0] for p in self.pose_history) / len(self.pose_history)
+            smooth_pose_v = sum(p[1] for p in self.pose_history) / len(self.pose_history)
+        else:
+            smooth_pose_h, smooth_pose_v = pose_h, pose_v
+        
+        # Combine face and pose
+        combined_h = face_h * (1 - self.pose_weight) + smooth_pose_h * self.pose_weight
+        combined_v = face_v * (1 - self.pose_weight) + smooth_pose_v * self.pose_weight
+        
+        return combined_h, combined_v
+
+    def draw_enhanced_landmarks(self, frame, landmarks, pose_landmarks=None):
         h, w = frame.shape[:2]
         
         for connection in self.FACE_CONNECTIONS:
@@ -165,6 +228,35 @@ class EyeTrackerLite:
             y = int(landmark.y * h)
             cv2.circle(frame, (x, y), 4, (0, 0, 255), -1)
             cv2.putText(frame, f"{idx}", (x + 5, y - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.3, (255, 255, 255), 1)
+        
+        # Draw pose landmarks if available
+        if pose_landmarks:
+            pose_points = [
+                self.mp_pose.PoseLandmark.NOSE,
+                self.mp_pose.PoseLandmark.LEFT_EAR,
+                self.mp_pose.PoseLandmark.RIGHT_EAR,
+                self.mp_pose.PoseLandmark.LEFT_SHOULDER,
+                self.mp_pose.PoseLandmark.RIGHT_SHOULDER
+            ]
+            
+            for landmark_idx in pose_points:
+                try:
+                    landmark = pose_landmarks.landmark[landmark_idx]
+                    x = int(landmark.x * w)
+                    y = int(landmark.y * h)
+                    cv2.circle(frame, (x, y), 5, (255, 165, 0), -1)
+                except:
+                    pass
+            
+            # Draw shoulder line
+            try:
+                left_shoulder = pose_landmarks.landmark[self.mp_pose.PoseLandmark.LEFT_SHOULDER]
+                right_shoulder = pose_landmarks.landmark[self.mp_pose.PoseLandmark.RIGHT_SHOULDER]
+                ls_point = (int(left_shoulder.x * w), int(left_shoulder.y * h))
+                rs_point = (int(right_shoulder.x * w), int(right_shoulder.y * h))
+                cv2.line(frame, ls_point, rs_point, (255, 165, 0), 3)
+            except:
+                pass
 
     def get_gaze(self):
         ret, frame = self.cap.read()
@@ -172,16 +264,20 @@ class EyeTrackerLite:
             return None
         
         rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        results = self.face_mesh.process(rgb_frame)
         
-        if not results.multi_face_landmarks:
+        # Process both face and pose
+        face_results = self.face_mesh.process(rgb_frame)
+        pose_results = self.pose.process(rgb_frame)
+        
+        if not face_results.multi_face_landmarks:
             self._show_frame(frame, "No face detected")
             return None
         
-        landmarks = results.multi_face_landmarks[0]
+        landmarks = face_results.multi_face_landmarks[0]
+        pose_landmarks = pose_results.pose_landmarks if pose_results.pose_landmarks else None
         
         if self.show_landmarks:
-            self.draw_enhanced_landmarks(frame, landmarks)
+            self.draw_enhanced_landmarks(frame, landmarks, pose_landmarks)
         
         left_eye, left_bounds = self.extract_eye_region(frame, landmarks, self.LEFT_EYE)
         right_eye, right_bounds = self.extract_eye_region(frame, landmarks, self.RIGHT_EYE)
@@ -199,26 +295,35 @@ class EyeTrackerLite:
         
         face_h_offset, face_v_offset = self.get_enhanced_face_direction(landmarks)
         
+        # Get pose direction and combine with face
+        if pose_landmarks:
+            pose_h_offset, pose_v_offset = self.get_pose_direction(pose_landmarks)
+            combined_h_offset, combined_v_offset = self.combine_face_and_pose(
+                face_h_offset, face_v_offset, pose_h_offset, pose_v_offset
+            )
+        else:
+            combined_h_offset, combined_v_offset = face_h_offset, face_v_offset
+        
         eye_gaze_x = (left_iris[0] + right_iris[0]) / 2
         eye_gaze_y = (left_iris[1] + right_iris[1]) / 2
         
         if self.aimbot_mode:
-            combined_x = eye_gaze_x + (face_h_offset * 0.4)
-            combined_y = eye_gaze_y + (face_v_offset * 0.5)
+            combined_x = eye_gaze_x + (combined_h_offset * 0.35)
+            combined_y = eye_gaze_y + (combined_v_offset * 0.45)
         else:
-            combined_x = eye_gaze_x + (face_h_offset * 0.2)
-            combined_y = eye_gaze_y + (face_v_offset * 0.3)
+            combined_x = eye_gaze_x + (combined_h_offset * 0.2)
+            combined_y = eye_gaze_y + (combined_v_offset * 0.3)
         
         combined_x = max(0, min(1, combined_x))
         combined_y = max(0, min(1, combined_y))
         
         if not self.calibrated:
-            return self._handle_calibration(frame, combined_x, combined_y)
+            return self._handle_calibration(frame, combined_x, combined_y, pose_landmarks)
         
         if self.center_point:
             if self.aimbot_mode:
-                sensitivity_x = 2.5
-                sensitivity_y = 2.2
+                sensitivity_x = 2.3
+                sensitivity_y = 2.1
             else:
                 sensitivity_x = 1.8
                 sensitivity_y = 1.5
@@ -231,11 +336,11 @@ class EyeTrackerLite:
         coords = (combined_x, combined_y)
         coords = self._smooth_gaze(coords)
         
-        self._show_tracking(frame, coords, left_bounds, right_bounds, face_h_offset, face_v_offset)
+        self._show_tracking(frame, coords, left_bounds, right_bounds, combined_h_offset, combined_v_offset, pose_landmarks)
         
         return coords
 
-    def _handle_calibration(self, frame, x, y):
+    def _handle_calibration(self, frame, x, y, pose_landmarks=None):
         display_frame = cv2.flip(frame, 1)
         h, w = frame.shape[:2]
         
@@ -252,6 +357,10 @@ class EyeTrackerLite:
         
         mode_text = "EYETRACK MODE" if self.aimbot_mode else "NORMAL MODE"
         cv2.putText(display_frame, mode_text, (50, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 0, 255), 2)
+        
+        pose_status = "POSE+FACE" if pose_landmarks else "FACE ONLY"
+        pose_color = (0, 255, 0) if pose_landmarks else (255, 165, 0)
+        cv2.putText(display_frame, pose_status, (50, 130), cv2.FONT_HERSHEY_SIMPLEX, 0.6, pose_color, 2)
         
         key = cv2.waitKey(1) & 0xFF
         if key == ord(' '):
@@ -290,7 +399,7 @@ class EyeTrackerLite:
         
         return (smooth_x, smooth_y)
 
-    def _show_tracking(self, frame, coords, left_bounds, right_bounds, face_h, face_v):
+    def _show_tracking(self, frame, coords, left_bounds, right_bounds, face_h, face_v, pose_landmarks=None):
         display_frame = cv2.flip(frame, 1)
         h, w = frame.shape[:2]
         
@@ -317,6 +426,10 @@ class EyeTrackerLite:
         mode_color = (255, 0, 255) if self.aimbot_mode else (0, 255, 255)
         mode_text = "EYETRACK" if self.aimbot_mode else "NORMAL"
         cv2.putText(display_frame, mode_text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, mode_color, 2)
+        
+        pose_status = "POSE+FACE" if pose_landmarks else "FACE ONLY"
+        pose_color = (0, 255, 0) if pose_landmarks else (255, 165, 0)
+        cv2.putText(display_frame, pose_status, (10, 70), cv2.FONT_HERSHEY_SIMPLEX, 0.6, pose_color, 2)
         
         cv2.putText(display_frame, f"H:{face_h:.2f} V:{face_v:.2f}", (10, h - 60), 
                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
