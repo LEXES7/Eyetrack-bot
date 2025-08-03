@@ -76,7 +76,7 @@ class EyeTrackerLite:
             (362, 382), (382, 381), (381, 380), (380, 374), (374, 373)
         ]
         
-        self.gaze_history = deque(maxlen=5)
+        self.gaze_history = deque(maxlen=10)  # Increased for more smoothing
         self.iris_history = deque(maxlen=3)
         self.pupil_history = deque(maxlen=3)
         self.face_axis_history = deque(maxlen=3)
@@ -468,10 +468,15 @@ class EyeTrackerLite:
         eye_gaze_x = (left_pupil[0] + right_pupil[0]) / 2
         eye_gaze_y = (left_pupil[1] + right_pupil[1]) / 2
         
+        # Slightly reduced sensitivity for stability
         if self.aimbot_mode:
+            sensitivity_x = 1.7
+            sensitivity_y = 2.3
             combined_x = eye_gaze_x + (combined_h_offset * 0.28)
             combined_y = eye_gaze_y + (combined_v_offset * 0.35)
         else:
+            sensitivity_x = 1.4
+            sensitivity_y = 2.0
             combined_x = eye_gaze_x + (combined_h_offset * 0.22)
             combined_y = eye_gaze_y + (combined_v_offset * 0.28)
         
@@ -482,13 +487,6 @@ class EyeTrackerLite:
             return self._handle_calibration(frame, combined_x, combined_y, pose_landmarks)
         
         if self.center_point:
-            if self.aimbot_mode:
-                sensitivity_x = 1.9
-                sensitivity_y = 2.6
-            else:
-                sensitivity_x = 1.6
-                sensitivity_y = 2.2
-                
             adjusted_x = 0.5 + (combined_x - self.center_point[0]) * sensitivity_x
             adjusted_y = 0.5 + (combined_y - self.center_point[1]) * sensitivity_y
             combined_x = max(0, min(1, adjusted_x))
@@ -553,14 +551,10 @@ class EyeTrackerLite:
         if len(self.gaze_history) < 2:
             return coords
         
-        if self.aimbot_mode:
-            weights = [0.1, 0.2, 0.3, 0.4][:len(self.gaze_history)]
-        else:
-            weights = [0.15, 0.25, 0.3, 0.3][:len(self.gaze_history)]
-        
-        weights = weights[-len(self.gaze_history):]
-        total_weight = sum(weights)
-        weights = [w/total_weight for w in weights]
+        # More smoothing, favoring recent but averaging more points
+        n = len(self.gaze_history)
+        weights = np.linspace(0.2, 1.0, n)
+        weights = weights / weights.sum()
         
         smooth_x = sum(coord[0] * weight for coord, weight in zip(self.gaze_history, weights))
         smooth_y = sum(coord[1] * weight for coord, weight in zip(self.gaze_history, weights))
