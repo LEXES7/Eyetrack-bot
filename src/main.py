@@ -3,7 +3,7 @@ from game_controller import GameController
 import time
 
 def main():
-    print("Starting Enhanced Eye Tracker with Pose Detection...")
+    print("Starting  Eye Tracker")
     
     eye_tracker = EyeTrackerLite()
     game_controller = GameController()
@@ -13,7 +13,6 @@ def main():
     last_fps_time = time.time()
     
     print("Eye tracker initialized successfully!")
-    print("Enhanced with shoulder and neck tracking for better accuracy")
     print("Controls:")
     print("  SPACE - Calibrate")
     print("  A - Toggle Eyetrack/Normal mode")

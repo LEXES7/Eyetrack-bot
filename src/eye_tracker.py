@@ -468,7 +468,7 @@ class EyeTrackerLite:
         eye_gaze_x = (left_pupil[0] + right_pupil[0]) / 2
         eye_gaze_y = (left_pupil[1] + right_pupil[1]) / 2
         
-        # Slightly reduced sensitivity for stability
+        # Reduced sensitivity for stability
         if self.aimbot_mode:
             sensitivity_x = 1.7
             sensitivity_y = 2.3
@@ -522,7 +522,7 @@ class EyeTrackerLite:
         cv2.putText(display_frame, f"Look at center - Press SPACE ({len(self.calibration_samples)}/{self.calibration_threshold})", 
                    (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2)
         
-        mode_text = "ENHANCED FACIAL AXIS TRACK" if self.aimbot_mode else "NORMAL MODE"
+        mode_text = " FACIAL AXIS TRACK" if self.aimbot_mode else "NORMAL MODE"
         cv2.putText(display_frame, mode_text, (50, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 0, 255), 2)
         
         pose_status = "POSE+FACE" if pose_landmarks else "FACE ONLY"
@@ -586,7 +586,7 @@ class EyeTrackerLite:
                 cv2.circle(display_frame, (gaze_x, gaze_y), 13, (255, 255, 255), 2)
         
         mode_color = (255, 0, 255) if self.aimbot_mode else (0, 255, 255)
-        mode_text = "ENHANCED FACIAL AXIS" if self.aimbot_mode else "NORMAL"
+        mode_text = "FACIAL AXIS" if self.aimbot_mode else "NORMAL"
         cv2.putText(display_frame, mode_text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, mode_color, 2)
         
         pose_status = "POSE+FACE" if pose_landmarks else "FACE ONLY"
